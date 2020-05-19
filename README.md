@@ -17,6 +17,7 @@ An accelerated Particle Swarm Optimization tool that uses [JAX](https://github.c
 In the case of Ubuntu 18.04
 
 ```
+$ cd python
 $ virtualenv --system-site-packages -p python3 ./venv-pso-jax
 $ source venv-pso-jax/bin/activate
 (venv-pso-jax) $ pip install --upgrade jax jaxlib  # CPU-only version
