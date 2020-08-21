@@ -8,23 +8,7 @@ An accelerated Particle Swarm Optimization tool that uses [JAX](https://github.c
 
 ## Getting Started
 
-### Collab example
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/BHI-Research/PSO-JAX/notebooks/PSO-JAX-knapspack-example.ipynb)
- 
-
-### Local example
-
-In the case of Ubuntu 18.04
-
-```
-$ cd python
-$ virtualenv --system-site-packages -p python3 ./venv-pso-jax
-$ source venv-pso-jax/bin/activate
-(venv-pso-jax) $ pip install --upgrade jax jaxlib  # CPU-only version
-(venv-pso-jax) $ pip install pyswarms
-(venv-pso-jax) $ python PSO-JAX-knapspack-example.py 
-
-```
+See this [example](examples/knapspack/README.md)
 
 ## References
 
