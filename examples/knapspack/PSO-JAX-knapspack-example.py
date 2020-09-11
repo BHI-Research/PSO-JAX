@@ -1,7 +1,7 @@
-"""# PSO/Mochila con NUMPY"""
+# -*- coding: utf-8 -*-
 
 
-def init_mochila():
+def init_knapsack():
     global pv_file
     global bs_file
     global rs_file
@@ -11,27 +11,27 @@ def init_mochila():
     bs_file = np.loadtxt('bs.csv', delimiter=',')
 
 
-def mochila_res(X):
-    Peso = np.sum(pv_file, axis=0)
+def knapsack_res(X):
+    weight = np.sum(pv_file, axis=0)
 
-    PR = np.matmul(X, pv_file)
+    PR = np.matmul(pv_file, X.transpose()).transpose()
 
     G = np.matmul(rs_file, X.transpose()).transpose()
-    # Transpongo para cumplir con (k,j),(j,i)->(k,i)
+    # Transpose to reach (k,j),(j,i)->(k,i)
 
-    VIO = np.add(G, -1 * bs_file)  # Esto esta perfecto
+    VIO = np.add(G, -1 * bs_file)
 
     VIO = np.where(VIO < 0.0, 0.0, VIO)
 
     PNLTY = np.sum(VIO, axis=1)
 
-    FI = np.add(PR, -1 * (Peso * PNLTY))
+    FI = np.add(PR, -1 * (weight * PNLTY))
 
     return FI, VIO
 
 
-def mochila(X):
-    FI, VIO = mochila_res(X)
+def knapsack(X):
+    FI, VIO = knapsack_res(X)
 
     return -FI
 
@@ -77,27 +77,26 @@ def calculate_best_position(objective_values, best_particle_cost, particles_posi
 
 
 def runDiscretePSO_np(user_options, algorithm_options):
-    # For each particle, initialize position and velocity
-    particles_position = np.random.uniform(-1, 1, (algorithm_options['particles'], algorithm_options['dimensions']))
-    particles_velocity = np.random.uniform(-1, 1, (algorithm_options['particles'], algorithm_options['dimensions']))
-
-    # particles_position = convert_to_discrete(particles_position)
-    particles_position = toDiscrete(activation(particles_velocity))
-
     particles = algorithm_options['particles']
     dimensions = algorithm_options['dimensions']
+    objective = algorithm_options['objective']
+    # For each particle, initialize position and velocity
+    particles_position = np.random.uniform(-1, 1, (particles, dimensions))
+    particles_velocity = np.random.uniform(-1, 1, (particles, dimensions))
+
+    particles_position = toDiscrete(activation(particles_velocity))
+
     best_global = None  # Best swarm cost
     best_global_position = np.empty((particles, dimensions))  # Best swarm position
     best_particle_position = particles_position
-    best_particle_cost = algorithm_options['objective'](best_particle_position)  # obj_fuction(best_particle_position)
+    best_particle_cost = objective(best_particle_position)
 
     for k in range(0, algorithm_options['iterations']):
-        # while k < algorithm_options['iterations']:
-        objective_values = algorithm_options['objective'](best_particle_position)  # obj_fuction(particles_position)
+        objective_values = objective(best_particle_position)
         best_index = np.argmin(objective_values)
         best_value = objective_values[best_index]
 
-        # 150 x 20 !!!
+        # particles x dimensions
         best_particle_position = calculate_best_position(objective_values, best_particle_cost, particles_position,
                                                          best_particle_position, particles, dimensions)
 
@@ -106,14 +105,13 @@ def runDiscretePSO_np(user_options, algorithm_options):
             best_global = best_value
             best_global_position = particles_position[best_index]
 
-        r1 = np.random.uniform(0, 1, (algorithm_options['particles'], algorithm_options['dimensions']))
-        r2 = np.random.uniform(0, 1, (algorithm_options['particles'], algorithm_options['dimensions']))
+        r1 = np.random.uniform(0, 1, (particles, dimensions))
+        r2 = np.random.uniform(0, 1, (particles, dimensions))
 
         particles_velocity = calculate_velocity(user_options['w'], particles_velocity, user_options['c1'],
                                                 user_options['c2'], r1, r2, best_particle_position,
                                                 particles_position, best_global_position)
 
-        # new_particle_positions = particles_position + particles_velocity
         particles_position = toDiscrete(activation(particles_position + particles_velocity))
 
         best_particle_position = particles_position
@@ -121,7 +119,7 @@ def runDiscretePSO_np(user_options, algorithm_options):
     return best_global, best_global_position
 
 
-"""# PSO/Mochila con JAX.NUMPY"""
+"""# PSO/Knapsack with JAX.NUMPY"""
 
 from datetime import datetime
 
@@ -131,31 +129,28 @@ from jax import random, jit
 
 
 @jit
-def mochila_res(X):
-    # P = len(X)
-    # M = nro_restricciones
+def knapsack_res(X):
+    weight = npj.sum(pv_file, axis=0)
 
-    Peso = npj.sum(pv_file, axis=0)
-
-    PR = npj.matmul(X, pv_file)
+    PR = npj.matmul(pv_file, X.transpose()).transpose()
 
     G = npj.matmul(rs_file, X.transpose()).transpose()
-    # Transpongo para cumplir con (k,j),(j,i)->(k,i)
+    # Transpose to reach (k,j),(j,i)->(k,i)
 
-    VIO = npj.add(G, -1 * bs_file)  # Esto esta perfecto
+    VIO = npj.add(G, -1 * bs_file)
 
     VIO = npj.where(VIO < 0.0, 0.0, VIO)
 
     PNLTY = npj.sum(VIO, axis=1)
 
-    FI = npj.add(PR, -1 * (Peso * PNLTY))
+    FI = npj.add(PR, -1 * (weight * PNLTY))
 
     return FI, VIO
 
 
 @jit
-def mochila(X):
-    FI, VIO = mochila_res(X)
+def knapsack(X):
+    FI, VIO = knapsack_res(X)
 
     return -FI
 
@@ -205,29 +200,30 @@ def calculate_best_position(objective_values, best_particle_cost, particles_posi
 
 
 def runDiscretePSO_jax(user_options, algorithm_options):
-    # For each particle, initialize position and velocity
-    particles_position = random.uniform(random.PRNGKey(datetime.now().microsecond),
-                                        (algorithm_options['particles'], algorithm_options['dimensions']), None, -1, 1)
-    particles_velocity = random.uniform(random.PRNGKey(datetime.now().microsecond),
-                                        (algorithm_options['particles'], algorithm_options['dimensions']), None, -1, 1)
-
-    # particles_position = convert_to_discrete(particles_position)
-    particles_position = toDiscrete(activation(particles_velocity))
-
     particles = algorithm_options['particles']
     dimensions = algorithm_options['dimensions']
+    objective = algorithm_options['objective']
+    # For each particle, initialize position and velocity
+    seed = random.PRNGKey(datetime.now().microsecond)
+    particles_position = random.uniform(seed, (particles, dimensions), None, -1, 1)
+    seed = random.PRNGKey(datetime.now().microsecond)
+    particles_velocity = random.uniform(seed, (particles, dimensions), None, -1, 1)
+    # Use of system microseconds as random seed to get different numbers each time
+
+    particles_position = toDiscrete(activation(particles_velocity))
+
     best_global = None  # Best swarm cost
     best_global_position = npj.empty((particles, dimensions))  # Best swarm position
     best_particle_position = particles_position
-    best_particle_cost = algorithm_options['objective'](best_particle_position)  # obj_fuction(best_particle_position)
+    best_particle_cost = objective(best_particle_position)  # obj_fuction(best_particle_position)
 
     for k in range(0, algorithm_options['iterations']):
-        # while k < algorithm_options['iterations']:
-        objective_values = algorithm_options['objective'](best_particle_position)  # obj_fuction(particles_position)
+        # Don't replace with 'iterations' variable because it is called only once
+        objective_values = objective(best_particle_position)  # obj_fuction(particles_position)
         best_index = npj.argmin(objective_values)
         best_value = objective_values[best_index]
 
-        # 150 x 20 !!!
+        # particles x dimensions
         best_particle_position = calculate_best_position(objective_values, best_particle_cost, particles_position,
                                                          best_particle_position, particles, dimensions)
 
@@ -236,61 +232,56 @@ def runDiscretePSO_jax(user_options, algorithm_options):
             best_global = best_value
             best_global_position = particles_position[best_index]
 
-        r1 = random.uniform(random.PRNGKey(datetime.now().microsecond),
-                            (algorithm_options['particles'], algorithm_options['dimensions']), None, 0, 1)
-        r2 = random.uniform(random.PRNGKey(datetime.now().microsecond),
-                            (algorithm_options['particles'], algorithm_options['dimensions']), None, 0, 1)
+        seed = random.PRNGKey(datetime.now().microsecond)
+        r1 = random.uniform(seed, (particles, dimensions), None, 0, 1)
+        seed = random.PRNGKey(datetime.now().microsecond)
+        r2 = random.uniform(seed, (particles, dimensions), None, 0, 1)
 
         particles_velocity = calculate_velocity(user_options['w'], particles_velocity, user_options['c1'],
                                                 user_options['c2'], r1, r2, best_particle_position,
                                                 particles_position, best_global_position)
 
-        # new_particle_positions = particles_position + particles_velocity
         particles_position = toDiscrete(activation(particles_position + particles_velocity))
 
         best_particle_position = particles_position
 
-        # best_cost_yet_found = npj.min(best_particle_cost)
-        # relative_measure = algorithm_options['ftol'] * (1 + npj.abs(best_cost_yet_found))
-        # if (npj.any(npj.abs(best_particle_cost - best_cost_yet_found) < relative_measure)):
-        #     break
-
     return best_global, best_global_position
 
 
-"""# Comparar Soluciones"""
+"""# Compare solutions"""
 
 import time
 import pyswarms as ps
 
 
-def generar_instancia(nro_items, nro_restricciones, alfa=0.75):
-    rs = np.random.randint(1000, size=(nro_restricciones, nro_items))
-    bs = alfa * np.sum(rs, axis=1)
-    q = np.random.random_sample((nro_items))
-    pv = np.sum(rs, axis=0) / nro_restricciones
+# This function generates the instance needed to prove the PSO
+def instance_generation(n_items, n_constraints, alpha=0.75):
+    rs = np.random.randint(1000, size=(n_constraints, n_items))
+    bs = alpha * np.sum(rs, axis=1)
+    q = np.random.random_sample((n_items))
+    pv = np.sum(rs, axis=0) / n_constraints
     pv = np.add(pv, 500 * q)
 
     return pv, rs, bs
 
 
-def imprimir_solucion(solX):
-    solPru = np.random.randint(2, size=(1, nro_items))
-    for k in range(0, nro_items):
+def print_solution(solX):
+    solPru = np.random.randint(2, size=(1, n_items))
+    for k in range(0, n_items):
         solPru[0, k] = solX[k]
 
     print(solX)
     print(solPru)
 
-    [f, vio] = mochila_res(solPru)
+    [f, vio] = knapsack_res(solPru)
     print(vio)
 
 
-def solucion_nuestra_np(num_particles, iterations, dim, ftol, options):
+def ps_bhi_np_solution(n_particles, iterations, dim, ftol, options):
     global solX_NumPy
     user_options = {'c1': options['c1'], 'c2': options['c2'], 'w': options['w']}
-    algorithm_options = {'particles': num_particles, 'dimensions': dim,
-                         'iterations': iterations, 'objective': mochila, 'ftol': ftol}
+    algorithm_options = {'particles': n_particles, 'dimensions': dim,
+                         'iterations': iterations, 'objective': knapsack, 'ftol': ftol}
 
     # Perform optimization
     start = time.time()
@@ -300,11 +291,11 @@ def solucion_nuestra_np(num_particles, iterations, dim, ftol, options):
     return solFO, wall_time
 
 
-def solucion_nuestra_jax(num_particles, iterations, dim, ftol, options):
+def pso_bhi_jax_solution(n_particles, iterations, dimensions, ftol, options):
     global solX_NumPyJAX
     user_options = {'c1': options['c1'], 'c2': options['c2'], 'w': options['w']}
-    algorithm_options = {'particles': num_particles, 'dimensions': dim,
-                         'iterations': iterations, 'objective': mochila, 'ftol': ftol}
+    algorithm_options = {'particles': n_particles, 'dimensions': dimensions,
+                         'iterations': iterations, 'objective': knapsack, 'ftol': ftol}
 
     # Perform optimization
     start = time.time()
@@ -314,10 +305,10 @@ def solucion_nuestra_jax(num_particles, iterations, dim, ftol, options):
     return solFO, wall_time
 
 
-def solucion_pyswarm(num_particles, iteraciones, dimensiones, ftol, options):
+def pyswarm_solution(n_particles, iterations, dimensions, ftol, options):
     global solX_PySwarms
-    optimizer = ps.discrete.binary.BinaryPSO(n_particles=num_particles,
-                                             dimensions=dimensiones,
+    optimizer = ps.discrete.binary.BinaryPSO(n_particles=n_particles,
+                                             dimensions=dimensions,
                                              options=options,
                                              init_pos=None,
                                              velocity_clamp=None,
@@ -325,76 +316,75 @@ def solucion_pyswarm(num_particles, iteraciones, dimensiones, ftol, options):
 
     # Perform optimization
     start = time.time()
-    [solFO, solX_PySwarms] = optimizer.optimize(mochila, iters=iteraciones)
+    [solFO, solX_PySwarms] = optimizer.optimize(knapsack, iters=iterations)
     wall_time = time.time() - start
 
     return solFO, wall_time
 
 
-def comparar_solciones():
-    # function particular variables
+def compare_solutions():
     global pv_file
     global bs_file
     global rs_file
-    global nro_items
-    global nro_restricciones
+    global n_items
+    global n_constraints
 
-    nro_items = 20
-    nro_restricciones = 5
+    n_items = 20
+    n_constraints = 5
 
-    [pv_temp, rs_temp, bs_temp] = generar_instancia(nro_items, nro_restricciones)
+    [pv_temp, rs_temp, bs_temp] = instance_generation(n_items, n_constraints)
     np.savetxt('pv.csv', pv_temp, delimiter=',')
     np.savetxt('rs.csv', rs_temp, delimiter=',')
     np.savetxt('bs.csv', bs_temp, delimiter=',')
 
-    dimensiones = nro_items
-    iteraciones = 100
-    num_particles = 15
+    dimensions = n_items
+    iteracions = 100
+    n_particles = 15
 
-    prom_iters = 30
+    average_iters = 5
     ftol = -np.inf
 
     wall_times = [0, 0, 0]
     solFOs = [0, 0, 0]
-    # Item 0: Solucion Pyswarms
-    # Item 1: Solucion Nuestra con Numpy
-    # Item 2: Solucion Nuestra con JAX
+    # Item 0: Pyswarms Solution
+    # Item 1: PSO-BHI Solution using Pyswarms
+    # Item 2: PSO-BHI Solution using JAX
 
-    init_mochila()
+    init_knapsack()
 
-    for i in range(prom_iters):
-        [solFO, wall_time] = solucion_pyswarm(num_particles, iteraciones, dimensiones, ftol,
-                                              options={'c1': 0.5, 'c2': 0.3, 'w': 0.9, 'k': num_particles, 'p': 1})
+    for i in range(average_iters):
+        [solFO, wall_time] = pyswarm_solution(n_particles, iteracions, dimensions, ftol,
+                                              options={'c1': 0.5, 'c2': 0.3, 'w': 0.9, 'k': n_particles, 'p': 1})
         wall_times[0] += wall_time
         solFOs[0] += solFO
 
-        [solFO, wall_time] = solucion_nuestra_np(num_particles, iteraciones, dimensiones, ftol,
-                                                 options={'c1': 0.5, 'c2': 0.3, 'w': 0.9, 'k': num_particles, 'p': 1})
+        [solFO, wall_time] = ps_bhi_np_solution(n_particles, iteracions, dimensions, ftol,
+                                                options={'c1': 0.5, 'c2': 0.3, 'w': 0.9, 'k': n_particles, 'p': 1})
         wall_times[1] += wall_time
         solFOs[1] += solFO
 
-        [solFO, wall_time] = solucion_nuestra_jax(num_particles, iteraciones, dimensiones, ftol,
-                                                  options={'c1': 0.5, 'c2': 0.3, 'w': 0.9, 'k': num_particles, 'p': 1})
+        [solFO, wall_time] = pso_bhi_jax_solution(n_particles, iteracions, dimensions, ftol,
+                                                  options={'c1': 0.5, 'c2': 0.3, 'w': 0.9, 'k': n_particles, 'p': 1})
         wall_times[2] += wall_time
         solFOs[2] += solFO
 
-    print("\nwall_time pyswarms: {:0.2f}ms".format(1000 * wall_times[0] / prom_iters))
-    print("wall_time nuestro: {:0.2f}ms (con NumPy)".format(1000 * wall_times[1] / prom_iters))
-    print("wall_time nuestro: {:0.2f}ms (con JAX.NumPy)".format(1000 * wall_times[2] / prom_iters))
+    print("\nwall_time pyswarms: {:0.2f}ms".format(1000 * wall_times[0] / average_iters))
+    print("wall_time PSO-BHI: {:0.2f}ms (using NumPy)".format(1000 * wall_times[1] / average_iters))
+    print("wall_time PSO-BHI: {:0.2f}ms (using JAX.NumPy)".format(1000 * wall_times[2] / average_iters))
 
-    print("\nSolucion Pyswarms: {:0.2f}".format(-solFOs[
-        0] / prom_iters))  # Los valores los pasamos a positivo ya que fueron tomados directamente de la mochila.
-    print("Solucion Numpy: {:0.2f}".format(-solFOs[1] / prom_iters))
-    print("Solucion JAX: {:0.2f}".format(-solFOs[2] / prom_iters))
+    print("\nSolucion Pyswarms: {:0.2f}".format(-solFOs[0] / average_iters))
+    print("Solucion Numpy: {:0.2f}".format(-solFOs[1] / average_iters))
+    print("Solucion JAX: {:0.2f}".format(-solFOs[2] / average_iters))
+    # Change sign because we took negative results from PSO
 
-    # Imprime la última mochila ejecutada.
+    # Prints the last run knapsack instance
     print("\nSolución PySwarms:")
-    imprimir_solucion(solX_PySwarms)
+    print_solution(solX_PySwarms)
     print("\nSolución NumPy:")
-    imprimir_solucion(solX_NumPy)
+    print_solution(solX_NumPy)
     print("\nSolución JAX.NumPy:")
-    imprimir_solucion(solX_NumPyJAX)
+    print_solution(solX_NumPyJAX)
 
 
 if __name__ == '__main__':
-    comparar_solciones()
+    compare_solutions()

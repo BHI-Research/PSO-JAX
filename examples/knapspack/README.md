@@ -9,7 +9,7 @@ An accelerated Particle Swarm Optimization tool that uses [JAX](https://github.c
 ## Getting Started
 
 ### Collab example
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/BHI-Research/PSO-JAX/examples/knapspack/PSO-JAX-knapspack-example.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/BHI-Research/PSO-JAX/blob/master/examples/knapspack/PSO-JAX-knapspack-example.ipynb)
  
 
 ### Local example
